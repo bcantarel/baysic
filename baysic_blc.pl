@@ -6,11 +6,8 @@ my %opt = ();
 my $results = GetOptions (\%opt,'fasta|f=s','help|h','prefix|p=s');
 my @vcffiles = @ARGV;
 
-my $tabix_dir = '/qbrc/home/bcantarel/seqprg/bin/';
-my $vcf_dir = '/qbrc/home/bcantarel/seqprg/bin/';
-my $lca = '/qbrc/home/bcantarel/seqprg/scripts/lca.R';
 unless($opt{fasta}) {
-    $opt{fasta} = '/qbrc/home/bcantarel/refdb/GRCh38/hs38DH.fa';
+    $opt{fasta} = 'hs38DH.fa';
 }
 unless($opt{prefix}) {
     $opt{prefix} = 'merge';
@@ -29,27 +26,27 @@ foreach $vcf (@vcffiles) {
   my $gfile = $shuff;
   if ($vcf ne $vcffiles[0] && ! -e $shuff) {
     if ($shuff =~m/gz$/) {
-      system(qq{$vcf_dir\/vcf-shuffle-cols -t $vcffiles[0] $vcf |bgzip > $shuff})
+      system(qq{vcf-shuffle-cols -t $vcffiles[0] $vcf |bgzip > $shuff})
     }else {
-      system(qq{$vcf_dir\/vcf-shuffle-cols -t $vcffiles[0] $vcf > $shuff})
+      system(qq{vcf-shuffle-cols -t $vcffiles[0] $vcf > $shuff})
     }
   }elsif (! -e $shuff) {
      system(qq{ln -s $vcf $shuff});
   }
   if ($shuff =~m/gz$/) {
-    system("$tabix_dir\/tabix $shuff") if ($vcf =~m/gz$/);
+    system("tabix $shuff") if ($vcf =~m/gz$/);
   }else {
-    system("$tabix_dir\/bgzip $shuff") unless (-e "$vcf\.gz") ;
-    system("$tabix_dir\/tabix $shuff\.gz") unless ($vcf =~m/gz$/);
+    system("bgzip $shuff") unless (-e "$vcf\.gz") ;
+    system("tabix $shuff\.gz") unless ($vcf =~m/gz$/);
     $gfile = "$shuff\.gz";
   }
   push @zipvcf, $gfile;
   $fname = (split(/\//,$vcf))[-1];
   $fname =~ s/\.vcf//;
 }
-my $command = $vcf_dir."vcf-compare ".join(" ",@zipvcf)." > $opt{prefix}\.vcf_compare.out";
+my $command = "vcf-compare ".join(" ",@zipvcf)." > $opt{prefix}\.vcf_compare.out";
 system($command);
-$command = $vcf_dir."vcf-isec -f --prefix $opt{prefix}\.integ ".join(" ",@zipvcf);
+$command = "vcf-isec -f --prefix $opt{prefix}\.integ ".join(" ",@zipvcf);
 system($command);
 
 my %ct = ();
@@ -81,7 +78,7 @@ foreach (@g) {
     print CTS join("\t",$_,$ct{$_}),"\n";
 }
 
-system("~/seqprg/bin/Rscript $lca -c $opt{prefix}.cts -s $opt{prefix}.stats");
+system("Rscript $lca -c $opt{prefix}.cts -s $opt{prefix}.stats");
 
 my @key1 = split(//,$g[-1]);
 my @key2;
@@ -105,7 +102,7 @@ while (my $line = <STATS>) {
     push @keeppos, $subset if (-e $subset);
 }
 
-system("$vcf_dir\/vcf-concat ".join(" ",@keeppos)." |vcf-sort |bgzip >  $opt{prefix}.baysic.vcf.gz");
+system("vcf-concat ".join(" ",@keeppos)." |vcf-sort |bgzip >  $opt{prefix}.baysic.vcf.gz");
 
 
 sub bits { glob join "", map "{0,1}", 1..$_[0] }
