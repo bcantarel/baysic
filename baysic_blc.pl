@@ -7,7 +7,7 @@ my $results = GetOptions (\%opt,'fasta|f=s','help|h','prefix|p=s','complex|c=s')
 my @zipvcf = @ARGV;
 
 unless($opt{fasta}) {
-    $opt{fasta} = '/project/shared/bicf_workflow_ref/GRCh38/hs38DH.fa';
+    $opt{fasta} = 'hs38DH.fa';
 }
 unless($opt{prefix}) {
     $opt{prefix} = 'baysic';
@@ -50,7 +50,7 @@ foreach (@g) {
     print CTS join("\t",$_,$ct{$_}),"\n";
 }
 
-system("Rscript /home2/s166458/projects/variant_germline/workflow/scripts/lca.R -c baysic.cts -s baysic.stats");
+system("Rscript lca.R -c baysic.cts -s baysic.stats");
 
 my @key1 = split(//,$g[-1]);
 my @key2;
