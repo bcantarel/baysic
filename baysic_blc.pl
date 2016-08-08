@@ -3,14 +3,17 @@
 
 use Getopt::Long qw(:config no_ignore_case no_auto_abbrev);
 my %opt = ();
-my $results = GetOptions (\%opt,'fasta|f=s','help|h','prefix|p=s','complex|c=s');
-my @zipvcf = @ARGV;
+my $results = GetOptions (\%opt,'fasta|f=s','help|h','prefix|p=s');
+my @vcffiles = @ARGV;
 
+my $tabix_dir = '/qbrc/home/bcantarel/seqprg/bin/';
+my $vcf_dir = '/qbrc/home/bcantarel/seqprg/bin/';
+my $lca = '/qbrc/home/bcantarel/seqprg/scripts/lca.R';
 unless($opt{fasta}) {
-    $opt{fasta} = 'hs38DH.fa';
+    $opt{fasta} = '/qbrc/home/bcantarel/refdb/GRCh38/hs38DH.fa';
 }
 unless($opt{prefix}) {
-    $opt{prefix} = 'baysic';
+    $opt{prefix} = 'merge';
 }
 my $total = 0;
 open FASTA, "<$opt{fasta}\.fai" or die "unable to find fai index for $opt{fasta}, please index with samtools";
@@ -20,12 +23,40 @@ while (my $line = <FASTA>) {
     $total += $length;
 }
 
+foreach $vcf (@vcffiles) {
+  $shuff = $vcf;
+  $shuff =~ s/vcf+/shuff.vcf/;
+  my $gfile = $shuff;
+  if ($vcf ne $vcffiles[0] && ! -e $shuff) {
+    if ($shuff =~m/gz$/) {
+      system(qq{$vcf_dir\/vcf-shuffle-cols -t $vcffiles[0] $vcf |bgzip > $shuff})
+    }else {
+      system(qq{$vcf_dir\/vcf-shuffle-cols -t $vcffiles[0] $vcf > $shuff})
+    }
+  }elsif (! -e $shuff) {
+     system(qq{ln -s $vcf $shuff});
+  }
+  if ($shuff =~m/gz$/) {
+    system("$tabix_dir\/tabix $shuff") if ($vcf =~m/gz$/);
+  }else {
+    system("$tabix_dir\/bgzip $shuff") unless (-e "$vcf\.gz") ;
+    system("$tabix_dir\/tabix $shuff\.gz") unless ($vcf =~m/gz$/);
+    $gfile = "$shuff\.gz";
+  }
+  push @zipvcf, $gfile;
+  $fname = (split(/\//,$vcf))[-1];
+  $fname =~ s/\.vcf//;
+}
+my $command = $vcf_dir."vcf-compare ".join(" ",@zipvcf)." > $opt{prefix}\.vcf_compare.out";
+system($command);
+$command = $vcf_dir."vcf-isec -f --prefix $opt{prefix}\.integ ".join(" ",@zipvcf);
+system($command);
+
 my %ct = ();
 my %snpbins = ();
-open CTS, ">baysic.cts" or die $!;
+open CTS, ">$opt{prefix}\.cts" or die $!;
 print CTS "Estimated sum: ".$total,"\n";
-open VC, "<vcf_compare.out" or die $!;
-
+open VC, "<$opt{prefix}\.vcf_compare.out" or die $!;
 while (my $line = <VC>) {
 	my @key = ();
     next if($line =~ m/#/);
@@ -50,14 +81,14 @@ foreach (@g) {
     print CTS join("\t",$_,$ct{$_}),"\n";
 }
 
-system("Rscript lca.R -c baysic.cts -s baysic.stats");
+system("~/seqprg/bin/Rscript $lca -c $opt{prefix}.cts -s $opt{prefix}.stats");
 
 my @key1 = split(//,$g[-1]);
 my @key2;
 foreach $i (0..$#key1) {
     push @key2, $i if ($key1[$i] > 0);
 }
-open STATS, "baysic.stats" or die $!;
+open STATS, "<$opt{prefix}.stats" or die $!;
 my @keeppos;
 while (my $line = <STATS>) {
     chomp($line);
@@ -70,10 +101,11 @@ while (my $line = <STATS>) {
     foreach $i (0..$#key1) {
 	push @key2, $i if ($key1[$i] > 0);
     }
-    my $subset =  'integrate'.join('_',@key2).'.vcf.gz';
+    my $subset =  $opt{prefix}.'.integ'.join('_',@key2).'.vcf.gz';
     push @keeppos, $subset if (-e $subset);
 }
-push @keeppos, $opt{complex} if ($opt{complex});
-system("vcf-concat ".join(" ",@keeppos)." |vcf-sort |bgzip > final.integrated.vcf.gz");
+
+system("$vcf_dir\/vcf-concat ".join(" ",@keeppos)." |vcf-sort |bgzip >  $opt{prefix}.baysic.vcf.gz");
+
 
 sub bits { glob join "", map "{0,1}", 1..$_[0] }
