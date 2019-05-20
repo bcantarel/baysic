@@ -3,7 +3,7 @@
 
 use Getopt::Long qw(:config no_ignore_case no_auto_abbrev);
 my %opt = ();
-my $results = GetOptions (\%opt,'fasta|f=s','help|h','prefix|p=s');
+my $results = GetOptions (\%opt,'fasta|f=s','help|h','prefix|p=s', 'lca|l=s');
 my @vcffiles = @ARGV;
 
 unless($opt{fasta}) {
@@ -78,7 +78,7 @@ foreach (@g) {
     print CTS join("\t",$_,$ct{$_}),"\n";
 }
 
-system("Rscript $lca -c $opt{prefix}.cts -s $opt{prefix}.stats");
+system("Rscript $opt{lca} -c $opt{prefix}.cts -s $opt{prefix}.stats");
 
 my @key1 = split(//,$g[-1]);
 my @key2;
