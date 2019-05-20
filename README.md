@@ -18,6 +18,6 @@ With these things installed and available in your path, you can run BAYSIC using
 baysic_blc.pl -f reference.fasta -p output_prefix -l /full/path/lca.R *.vcf  
 ```
 
--f reference.fa (alignment reference fasta file
--p prefix for output files names
--l location of lca.R file
+-f reference.fa (alignment reference fasta file<br>
+-p prefix for output files names<br>
+-l location of lca.R file<br>
